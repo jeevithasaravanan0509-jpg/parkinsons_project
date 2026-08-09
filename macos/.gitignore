@@ -1,0 +1,24 @@
+# Flutter-related
+**/Flutter/ephemeral/
+**/Pods/
+
+# Xcode-related
+**/dgph
+**/xcuserdata/
+# Firebase configuration
+android/app/google-services.json
+lib/firebase_options.dart
+# Firebase configuration / local secrets
+android/app/google-services.json
+
+# Firebase generated configuration
+lib/firebase_options.dart
+
+# Android generated build files
+android/build/
+
+# Local environment / secret files
+.env
+.env.*
+*.keystore
+*.jks
