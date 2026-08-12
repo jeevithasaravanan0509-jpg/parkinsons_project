@@ -24,144 +24,162 @@ class MotorAssessmentHomeScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(
+            20,
+            10,
+            20,
+            30,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 22),
 
-            const Text(
-              'Choose a test',
-              style: TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF25324A),
+              const Text(
+                'Choose an assessment',
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF25324A),
+                ),
               ),
-            ),
 
-            const SizedBox(height: 6),
+              const SizedBox(height: 6),
 
-            const Text(
-              'Complete a guided activity and let the app '
-              'analyze your movement automatically.',
-              style: TextStyle(
-                fontSize: 13.5,
-                height: 1.45,
-                color: Color(0xFF7A8499),
+              const Text(
+                'Complete these short movement tests to '
+                'track motor performance over time.',
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.45,
+                  color: Color(0xFF7A8499),
+                ),
               ),
-            ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 18),
 
-            // -------------------------------------------------
-            // 1. SPIRAL TRACE
-            // -------------------------------------------------
-            _buildTestCard(
-              context,
-              icon: Icons.gesture_rounded,
-              title: 'Spiral Trace',
-              description:
-                  'Trace the spiral while the app measures '
-                  'movement and path variation.',
-              color: const Color(0xFF6C63FF),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        const MotorAssessmentScreen(),
-                  ),
-                );
-              },
-            ),
+              // =====================================================
+              // SPIRAL TRACE
+              // =====================================================
 
-            const SizedBox(height: 14),
+              _buildAssessmentCard(
+                context: context,
+                icon: Icons.gesture_rounded,
+                iconColor: const Color(0xFF6C63FF),
+                iconBackground: const Color(0xFFEEF2FF),
+                title: 'Spiral Trace',
+                description:
+                    'Trace a guided spiral while the app '
+                    'records path deviation and movement smoothness.',
+                tag: 'Hand movement',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          const MotorAssessmentScreen(),
+                    ),
+                  );
+                },
+              ),
 
-            // -------------------------------------------------
-            // 2. WRITING TEST
-            // -------------------------------------------------
-            _buildTestCard(
-              context,
-              icon: Icons.edit_rounded,
-              title: 'Writing Test',
-              description:
-                  'Write a guided phrase naturally for '
-                  'handwriting movement analysis.',
-              color: const Color(0xFF4D8EDC),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        const WritingTestScreen(),
-                  ),
-                );
-              },
-            ),
+              const SizedBox(height: 14),
 
-            const SizedBox(height: 14),
+              // =====================================================
+              // LINE TRACING
+              // =====================================================
 
-            // -------------------------------------------------
-            // 3. LINE TRACING
-            // -------------------------------------------------
-            _buildTestCard(
-              context,
-              icon: Icons.timeline_rounded,
-              title: 'Line Tracing',
-              description:
-                  'Follow a target line while the app '
-                  'measures your tracing accuracy.',
-              color: const Color(0xFF55A88A),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        const LineTracingScreen(),
-                  ),
-                );
-              },
-            ),
+              _buildAssessmentCard(
+                context: context,
+                icon: Icons.linear_scale_rounded,
+                iconColor: const Color(0xFF55A88A),
+                iconBackground: const Color(0xFFEAF8F2),
+                title: 'Line Tracing',
+                description:
+                    'Follow a guided line to assess the steadiness '
+                    'and consistency of your hand movement.',
+                tag: 'Precision',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LineTracingTestScreen(),
+                    ),
+                  );
+                },
+              ),
 
-            const SizedBox(height: 14),
+              const SizedBox(height: 14),
 
-            // -------------------------------------------------
-            // 4. FINGER TAPPING
-            // -------------------------------------------------
-            _buildTestCard(
-              context,
-              icon: Icons.touch_app_rounded,
-              title: 'Finger Tapping',
-              description:
-                  'Tap repeatedly while the app measures '
-                  'your tapping rhythm and consistency.',
-              color: const Color(0xFF8B78D9),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        const FingerTappingScreen(),
-                  ),
-                );
-              },
-            ),
+              // =====================================================
+              // WRITING TEST
+              // =====================================================
 
-            const SizedBox(height: 24),
+              _buildAssessmentCard(
+                context: context,
+                icon: Icons.edit_rounded,
+                iconColor: const Color(0xFF4D8EDC),
+                iconBackground: const Color(0xFFEAF2FF),
+                title: 'Writing Test',
+                description:
+                    'Write a short phrase naturally while the app '
+                    'records writing movement and smoothness.',
+                tag: 'Handwriting',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          const WritingTestScreen(),
+                    ),
+                  );
+                },
+              ),
 
-            _buildInfoCard(),
-          ],
+              const SizedBox(height: 14),
+
+              // =====================================================
+              // FINGER TAPPING
+              // =====================================================
+
+              _buildAssessmentCard(
+                context: context,
+                icon: Icons.touch_app_rounded,
+                iconColor: const Color(0xFFD86B78),
+                iconBackground: const Color(0xFFFFEEF0),
+                title: 'Finger Tapping',
+                description:
+                    'Perform repeated finger taps to measure '
+                    'movement speed and consistency.',
+                tag: 'Movement speed',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FingerTappingTestScreen(),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 22),
+
+              _buildInfoCard(),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // =========================================================
+  // ===============================================================
   // HEADER
-  // =========================================================
+  // ===============================================================
 
   Widget _buildHeader() {
     return Container(
@@ -182,25 +200,30 @@ class MotorAssessmentHomeScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            Icons.psychology_alt_rounded,
-            size: 38,
+            Icons.accessibility_new_rounded,
+            size: 36,
             color: Color(0xFF6C63FF),
           ),
+
           SizedBox(height: 14),
+
           Text(
-            'Movement Screening',
+            'Motor Function Assessment',
             style: TextStyle(
-              fontSize: 25,
+              fontSize: 24,
               fontWeight: FontWeight.w800,
               color: Color(0xFF25324A),
             ),
           ),
+
           SizedBox(height: 8),
+
           Text(
-            'Perform simple guided activities while '
-            'Parkinson Care analyzes your movement.',
+            'Use simple software-based tests to observe '
+            'hand movement, coordination, precision, '
+            'writing and tapping performance.',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 13.5,
               height: 1.5,
               color: Color(0xFF68758A),
             ),
@@ -210,16 +233,18 @@ class MotorAssessmentHomeScreen extends StatelessWidget {
     );
   }
 
-  // =========================================================
-  // TEST CARD
-  // =========================================================
+  // ===============================================================
+  // ASSESSMENT CARD
+  // ===============================================================
 
-  Widget _buildTestCard(
-    BuildContext context, {
+  Widget _buildAssessmentCard({
+    required BuildContext context,
     required IconData icon,
+    required Color iconColor,
+    required Color iconBackground,
     required String title,
     required String description,
-    required Color color,
+    required String tag,
     required VoidCallback onTap,
   }) {
     return Material(
@@ -229,62 +254,105 @@ class MotorAssessmentHomeScreen extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(21),
         child: Container(
+          width: double.infinity,
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(21),
             border: Border.all(
-              color: const Color(0xFFE4E9F2),
+              color: const Color(0xFFE3E8F2),
             ),
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ---------------------------------------------------
+              // ICON
+              // ---------------------------------------------------
+
               Container(
-                width: 58,
-                height: 58,
+                width: 50,
+                height: 50,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.11),
-                  borderRadius: BorderRadius.circular(17),
+                  color: iconBackground,
+                  borderRadius: BorderRadius.circular(15),
                 ),
                 child: Icon(
                   icon,
-                  color: color,
-                  size: 29,
+                  color: iconColor,
+                  size: 27,
                 ),
               ),
 
-              const SizedBox(width: 15),
+              const SizedBox(width: 14),
+
+              // ---------------------------------------------------
+              // CONTENT
+              // ---------------------------------------------------
 
               Expanded(
                 child: Column(
                   crossAxisAlignment:
                       CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF303C52),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF25324A),
+                            ),
+                          ),
+                        ),
+
+                        const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 15,
+                          color: Color(0xFF9AA3B3),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 5),
+
+                    const SizedBox(height: 6),
+
                     Text(
                       description,
                       style: const TextStyle(
                         fontSize: 12.5,
-                        height: 1.4,
+                        height: 1.45,
                         color: Color(0xFF7A8499),
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // ------------------------------------------------
+                    // TAG
+                    // ------------------------------------------------
+
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: iconBackground,
+                        borderRadius:
+                            BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        tag,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: iconColor,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
-
-              const SizedBox(width: 8),
-
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: Color(0xFFA2ABBA),
               ),
             ],
           ),
@@ -293,35 +361,38 @@ class MotorAssessmentHomeScreen extends StatelessWidget {
     );
   }
 
-  // =========================================================
+  // ===============================================================
   // INFORMATION CARD
-  // =========================================================
+  // ===============================================================
 
   Widget _buildInfoCard() {
     return Container(
-      padding: const EdgeInsets.all(17),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF9ED),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(17),
         border: Border.all(
           color: const Color(0xFFF0DFB8),
         ),
       ),
       child: const Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             Icons.info_outline_rounded,
-            color: Color(0xFFB58532),
             size: 21,
+            color: Color(0xFFB58532),
           ),
+
           SizedBox(width: 10),
+
           Expanded(
             child: Text(
-              'These activities are intended for movement '
-              'screening and tracking. They are not a '
-              'standalone medical diagnosis.',
+              'These assessments are software-based movement '
+              'screening tools. They are intended for tracking '
+              'and observation, not for diagnosing Parkinson’s '
+              'disease or any other medical condition.',
               style: TextStyle(
                 fontSize: 11.5,
                 height: 1.45,

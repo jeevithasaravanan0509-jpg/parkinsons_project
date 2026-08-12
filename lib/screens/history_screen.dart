@@ -2,21 +2,719 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../models/symptom_model.dart';
-import '../services/symptom_service.dart';
-
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
 
+  String _testName(String type) {
+    final value = type.toLowerCase().trim();
+
+    if (value.contains('finger') || value.contains('tap')) {
+      return 'Finger Tapping';
+    }
+
+    if (value.contains('line')) {
+      return 'Line Tracing';
+    }
+
+    if (value.contains('writing') || value.contains('handwriting')) {
+      return 'Writing Test';
+    }
+
+    if (value.contains('spiral') || value.contains('motor')) {
+      return 'Spiral Trace';
+    }
+
+    return 'Motor Assessment';
+  }
+
+  IconData _testIcon(String type) {
+    switch (_testName(type)) {
+      case 'Finger Tapping':
+        return Icons.touch_app_rounded;
+
+      case 'Line Tracing':
+        return Icons.timeline_rounded;
+
+      case 'Writing Test':
+        return Icons.edit_rounded;
+
+      case 'Spiral Trace':
+        return Icons.gesture_rounded;
+
+      default:
+        return Icons.analytics_rounded;
+    }
+  }
+
+  Color _testColor(String type) {
+    switch (_testName(type)) {
+      case 'Finger Tapping':
+        return const Color(0xFF7B61C9);
+
+      case 'Line Tracing':
+        return const Color(0xFF4D8EDC);
+
+      case 'Writing Test':
+        return const Color(0xFF4BAA8A);
+
+      case 'Spiral Trace':
+        return const Color(0xFFE28A55);
+
+      default:
+        return const Color(0xFF64748B);
+    }
+  }
+
+  String _formatDate(Timestamp? timestamp) {
+    if (timestamp == null) {
+      return 'Date unavailable';
+    }
+
+    final date = timestamp.toDate();
+
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString();
+
+    final hour = date.hour == 0
+        ? 12
+        : date.hour > 12
+            ? date.hour - 12
+            : date.hour;
+
+    final minute = date.minute.toString().padLeft(2, '0');
+
+    final period = date.hour >= 12 ? 'PM' : 'AM';
+
+    return '$day/$month/$year • $hour:$minute $period';
+  }
+
+  double? _numericValue(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(value.toString());
+  }
+
+  String _formatScore(dynamic score) {
+    final value = _numericValue(score);
+
+    if (value == null) {
+      return '--';
+    }
+
+    return '${value.toStringAsFixed(1)}%';
+  }
+
+  double? _percentage(dynamic value) {
+    final number = _numericValue(value);
+
+    if (number == null) {
+      return null;
+    }
+
+    if (number <= 1) {
+      return number * 100;
+    }
+
+    return number;
+  }
+
+  String _extraInformation(Map<String, dynamic> data) {
+    final parts = <String>[];
+
+    final duration = _numericValue(data['durationSeconds']);
+
+    if (duration != null) {
+      parts.add('${duration.toStringAsFixed(1)} s');
+    }
+
+    final smoothness = _percentage(data['smoothness']);
+
+    if (smoothness != null) {
+      parts.add(
+        'Smoothness ${smoothness.toStringAsFixed(1)}%',
+      );
+    }
+
+    final taps =
+        data['tapCount'] ?? data['taps'] ?? data['totalTaps'];
+
+    if (taps != null) {
+      parts.add('Taps $taps');
+    }
+
+    final strokes = data['strokeCount'];
+
+    if (strokes != null) {
+      parts.add('Strokes $strokes');
+    }
+
+    final points = data['pointsRecorded'];
+
+    if (points != null) {
+      parts.add('Points $points');
+    }
+
+    return parts.join(' • ');
+  }
+
+  String _summaryText(
+    String testName,
+    Map<String, dynamic> data,
+  ) {
+    final score = _numericValue(data['score']);
+
+    final scoreText =
+        score != null ? '${score.toStringAsFixed(1)}%' : 'the recorded score';
+
+    switch (testName) {
+      case 'Writing Test':
+        final smoothness = _percentage(data['smoothness']);
+
+        if (smoothness != null) {
+          return 'Your writing movement showed a smoothness measure of '
+              '${smoothness.toStringAsFixed(1)}%. '
+              'The $scoreText score is based on the movement smoothness '
+              'calculated from the recorded writing path.';
+        }
+
+        return 'Your writing movement was recorded during the assessment. '
+            'The $scoreText score is based on the movement characteristics '
+            'captured while completing the writing task.';
+
+      case 'Line Tracing':
+        final smoothness = _percentage(data['smoothness']);
+
+        if (smoothness != null) {
+          return 'Your movement while tracing the target line was recorded '
+              'with a smoothness measure of '
+              '${smoothness.toStringAsFixed(1)}%. '
+              'The $scoreText score reflects the movement characteristics '
+              'measured during the tracing task.';
+        }
+
+        return 'Your tracing movement was recorded while following the '
+            'target path. The $scoreText score represents the movement '
+            'performance measured during this assessment.';
+
+      case 'Finger Tapping':
+        final taps =
+            data['tapCount'] ?? data['taps'] ?? data['totalTaps'];
+
+        final duration = _numericValue(data['durationSeconds']);
+
+        if (taps != null && duration != null) {
+          return 'You completed $taps recorded taps in '
+              '${duration.toStringAsFixed(1)} seconds. '
+              'The $scoreText score reflects the tapping performance '
+              'measured during this assessment.';
+        }
+
+        if (taps != null) {
+          return 'The assessment recorded $taps taps during the task. '
+              'The $scoreText score reflects the tapping performance '
+              'measured from the recorded activity.';
+        }
+
+        return 'Your finger tapping activity was recorded during the task. '
+            'The $scoreText score represents the tapping performance '
+            'measured during this assessment.';
+
+      case 'Spiral Trace':
+        final smoothness = _percentage(data['smoothness']);
+
+        if (smoothness != null) {
+          return 'Your spiral movement was recorded with a smoothness '
+              'measure of ${smoothness.toStringAsFixed(1)}%. '
+              'The $scoreText score reflects the movement characteristics '
+              'measured while tracing the spiral.';
+        }
+
+        return 'Your movement while following the spiral was recorded '
+            'during the assessment. The $scoreText score represents the '
+            'movement performance measured during the tracing task.';
+
+      default:
+        return 'Your motor movement was recorded during this assessment. '
+            'The $scoreText score represents the movement performance '
+            'calculated from the measurements collected during the test.';
+    }
+  }
+
+  String _scoreBasis(
+    String testName,
+    Map<String, dynamic> data,
+  ) {
+    switch (testName) {
+      case 'Writing Test':
+        return 'The current Writing Test score is calculated primarily '
+            'from the smoothness of the recorded writing movement.';
+
+      case 'Line Tracing':
+        return 'The Line Tracing score is intended to represent the '
+            'movement performance recorded while following the target line.';
+
+      case 'Finger Tapping':
+        return 'The Finger Tapping score is based on the tapping '
+            'performance recorded during the assessment.';
+
+      case 'Spiral Trace':
+        return 'The Spiral Trace score is based on movement '
+            'characteristics recorded while following the spiral path.';
+
+      default:
+        return 'The score is calculated from movement measurements '
+            'recorded during this motor assessment.';
+    }
+  }
+
+  void _showAssessmentSummary(
+    BuildContext context,
+    Map<String, dynamic> data,
+  ) {
+    final type = data['testType']?.toString() ?? '';
+
+    final testName = _testName(type);
+    final color = _testColor(type);
+    final icon = _testIcon(type);
+
+    final score = _numericValue(data['score']);
+
+    final scoreText = score != null
+        ? '${score.toStringAsFixed(1)}%'
+        : '--';
+
+    final summary = _summaryText(
+      testName,
+      data,
+    );
+
+    final basis = _scoreBasis(
+      testName,
+      data,
+    );
+
+    final duration = _numericValue(
+      data['durationSeconds'],
+    );
+
+    final smoothness = _percentage(
+      data['smoothness'],
+    );
+
+    final taps =
+        data['tapCount'] ??
+        data['taps'] ??
+        data['totalTaps'];
+
+    final strokes = data['strokeCount'];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(
+              maxHeight: 650,
+            ),
+            padding: const EdgeInsets.fromLTRB(
+              22,
+              12,
+              22,
+              24,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(30),
+              ),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD6DCE7),
+                        borderRadius:
+                            BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 22),
+
+                  Row(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          borderRadius:
+                              BorderRadius.circular(16),
+                        ),
+                        child: Icon(
+                          icon,
+                          color: color,
+                          size: 27,
+                        ),
+                      ),
+
+                      const SizedBox(width: 13),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              testName,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color:
+                                    Color(0xFF25324A),
+                              ),
+                            ),
+
+                            const SizedBox(height: 3),
+
+                            const Text(
+                              'Assessment summary',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color:
+                                    Color(0xFF8A94A5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 22),
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7F9FE),
+                      borderRadius:
+                          BorderRadius.circular(18),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Recorded score',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color:
+                                      Color(0xFF7A8499),
+                                ),
+                              ),
+
+                              const SizedBox(height: 5),
+
+                              Text(
+                                scoreText,
+                                style: TextStyle(
+                                  fontSize: 30,
+                                  fontWeight:
+                                      FontWeight.w900,
+                                  color: color,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        if (score != null)
+                          SizedBox(
+                            width: 62,
+                            height: 62,
+                            child: Stack(
+                              alignment:
+                                  Alignment.center,
+                              children: [
+                                CircularProgressIndicator(
+                                  value:
+                                      (score / 100)
+                                          .clamp(
+                                    0.0,
+                                    1.0,
+                                  ),
+                                  strokeWidth: 7,
+                                  backgroundColor:
+                                      const Color(
+                                    0xFFE2E7F0,
+                                  ),
+                                  valueColor:
+                                      AlwaysStoppedAnimation<
+                                          Color>(
+                                    color,
+                                  ),
+                                ),
+                                Text(
+                                  score.toStringAsFixed(0),
+                                  style:
+                                      const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight:
+                                        FontWeight.w800,
+                                    color:
+                                        Color(0xFF303C52),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  const Text(
+                    'What happened?',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF25324A),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Text(
+                    summary,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      height: 1.55,
+                      color: Color(0xFF68758A),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  const Text(
+                    'How is the score calculated?',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF25324A),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Text(
+                    basis,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      height: 1.55,
+                      color: Color(0xFF68758A),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  const Text(
+                    'Recorded measurements',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF25324A),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (duration != null)
+                        _metricChip(
+                          icon: Icons.timer_outlined,
+                          label: 'Duration',
+                          value:
+                              '${duration.toStringAsFixed(1)} s',
+                        ),
+
+                      if (smoothness != null)
+                        _metricChip(
+                          icon: Icons.waves_rounded,
+                          label: 'Smoothness',
+                          value:
+                              '${smoothness.toStringAsFixed(1)}%',
+                        ),
+
+                      if (taps != null)
+                        _metricChip(
+                          icon: Icons.touch_app_rounded,
+                          label: 'Taps',
+                          value: taps.toString(),
+                        ),
+
+                      if (strokes != null)
+                        _metricChip(
+                          icon: Icons.gesture_rounded,
+                          label: 'Strokes',
+                          value: strokes.toString(),
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF8EA),
+                      borderRadius:
+                          BorderRadius.circular(15),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 20,
+                          color: Color(0xFFB47B21),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'This score describes movement performance '
+                            'recorded during this assessment. It is '
+                            'intended for progress tracking and is not '
+                            'a standalone medical diagnosis.',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              height: 1.45,
+                              color: Color(0xFF7D653C),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: color,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape:
+                            RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(15),
+                        ),
+                      ),
+                      child: const Text(
+                        'Got it',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _metricChip({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 10,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F9FE),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(
+          color: const Color(0xFFE2E7F0),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.circle,
+            size: 5,
+            color: Color(0xFF4D8EDC),
+          ),
+
+          const SizedBox(width: 7),
+
+          Text(
+            '$label: ',
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: Color(0xFF7A8499),
+            ),
+          ),
+
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF303C52),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final List<SymptomModel> symptomHistory =
-        SymptomService.instance.getAllAssessments();
-
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9FE),
+
       appBar: AppBar(
         backgroundColor: const Color(0xFFF7F9FE),
         foregroundColor: const Color(0xFF25324A),
@@ -29,112 +727,122 @@ class HistoryScreen extends StatelessWidget {
           ),
         ),
       ),
+
       body: user == null
-          ? _buildNoUser(context, symptomHistory)
-          : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          ? _buildNoUser()
+          : StreamBuilder<
+              QuerySnapshot<Map<String, dynamic>>
+            >(
               stream: FirebaseFirestore.instance
                   .collection('users')
                   .doc(user.uid)
                   .collection('motor_assessments')
-                  .orderBy(
-                    'createdAt',
-                    descending: true,
-                  )
                   .snapshots(),
+
               builder: (context, snapshot) {
                 if (snapshot.connectionState ==
                     ConnectionState.waiting) {
-                  return _buildLoadingScreen();
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
                 }
 
-                final motorResults =
-                    snapshot.data?.docs ?? [];
+                if (snapshot.hasError) {
+                  return _buildError(
+                    snapshot.error.toString(),
+                  );
+                }
 
-                final hasSymptomHistory =
-                    symptomHistory.isNotEmpty;
-
-                final hasMotorHistory =
-                    motorResults.isNotEmpty;
-
-                if (!hasSymptomHistory &&
-                    !hasMotorHistory) {
+                if (!snapshot.hasData ||
+                    snapshot.data!.docs.isEmpty) {
                   return _buildEmptyState();
                 }
 
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    await Future.delayed(
-                      const Duration(milliseconds: 400),
-                    );
-                  },
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(
-                      20,
-                      12,
-                      20,
-                      30,
-                    ),
-                    children: [
-                      _buildHeader(
-                        symptomCount:
-                            symptomHistory.length,
-                        motorCount:
-                            motorResults.length,
-                      ),
+                final records =
+                    snapshot.data!.docs.toList();
 
-                      const SizedBox(height: 22),
+                records.sort((a, b) {
+                  final aTime =
+                      a.data()['createdAt'];
 
-                      if (hasMotorHistory) ...[
-                        _buildSectionTitle(
-                          'Motor Assessments',
-                          'Movement tests completed in the app',
-                          Icons.psychology_alt_rounded,
-                        ),
-                        const SizedBox(height: 12),
-                        ...motorResults.map(
-                          (doc) => _buildMotorCard(
-                            context,
-                            doc,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
+                  final bTime =
+                      b.data()['createdAt'];
 
-                      if (hasSymptomHistory) ...[
-                        _buildSectionTitle(
-                          'Symptom Assessments',
-                          'Your recorded daily symptoms',
-                          Icons.monitor_heart_outlined,
-                        ),
-                        const SizedBox(height: 12),
-                        ...symptomHistory.reversed.map(
-                          (item) =>
-                              _buildSymptomCard(item),
-                        ),
-                      ],
+                  if (aTime is Timestamp &&
+                      bTime is Timestamp) {
+                    return bTime.compareTo(aTime);
+                  }
 
-                      const SizedBox(height: 20),
+                  if (aTime is Timestamp) {
+                    return -1;
+                  }
 
-                      _buildDisclaimer(),
-                    ],
+                  if (bTime is Timestamp) {
+                    return 1;
+                  }
+
+                  return 0;
+                });
+
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    20,
+                    12,
+                    20,
+                    30,
                   ),
+                  children: [
+                    _buildSummaryCard(records),
+
+                    const SizedBox(height: 20),
+
+                    const Text(
+                      'Your assessments',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF25324A),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    ...records.map(
+                      (document) {
+                        return Padding(
+                          padding:
+                              const EdgeInsets.only(
+                            bottom: 12,
+                          ),
+                          child: _buildHistoryCard(
+                            context,
+                            document.data(),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 );
               },
             ),
     );
   }
 
-  // =========================================================
-  // HEADER
-  // =========================================================
+  Widget _buildSummaryCard(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>>
+        records,
+  ) {
+    final testTypes = <String>{};
 
-  Widget _buildHeader({
-    required int symptomCount,
-    required int motorCount,
-  }) {
+    for (final record in records) {
+      final type =
+          record.data()['testType']?.toString() ?? '';
+
+      testTypes.add(_testName(type));
+    }
+
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [
@@ -146,95 +854,57 @@ class HistoryScreen extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(24),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.history_rounded,
-            size: 36,
-            color: Color(0xFF6C63FF),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Your Progress',
-            style: TextStyle(
-              fontSize: 25,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF25324A),
-            ),
-          ),
-          const SizedBox(height: 7),
-          const Text(
-            'Review your previous symptom and movement '
-            'assessments in one place.',
-            style: TextStyle(
-              fontSize: 13.5,
-              height: 1.45,
-              color: Color(0xFF68758A),
-            ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _buildCountCard(
-                  'Symptoms',
-                  symptomCount,
-                  Icons.monitor_heart_outlined,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildCountCard(
-                  'Motor Tests',
-                  motorCount,
-                  Icons.touch_app_rounded,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCountCard(
-    String title,
-    int count,
-    IconData icon,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.75),
-        borderRadius: BorderRadius.circular(16),
-      ),
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 20,
-            color: const Color(0xFF6C63FF),
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.8),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.analytics_rounded,
+              color: Color(0xFF4D8EDC),
+              size: 28,
+            ),
           ),
-          const SizedBox(width: 9),
+
+          const SizedBox(width: 14),
+
           Expanded(
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.start,
               children: [
-                Text(
-                  '$count',
-                  style: const TextStyle(
-                    fontSize: 19,
+                const Text(
+                  'Motor Assessment Progress',
+                  style: TextStyle(
+                    fontSize: 17,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF303C52),
+                    color: Color(0xFF25324A),
                   ),
                 ),
+
+                const SizedBox(height: 5),
+
                 Text(
-                  title,
+                  '${records.length} assessment'
+                  '${records.length == 1 ? '' : 's'} recorded',
                   style: const TextStyle(
-                    fontSize: 10.5,
-                    color: Color(0xFF7A8499),
+                    fontSize: 12.5,
+                    color: Color(0xFF68758A),
+                  ),
+                ),
+
+                const SizedBox(height: 3),
+
+                Text(
+                  '${testTypes.length} test type'
+                  '${testTypes.length == 1 ? '' : 's'} completed',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: Color(0xFF68758A),
                   ),
                 ),
               ],
@@ -245,122 +915,41 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
-  // =========================================================
-  // SECTION TITLE
-  // =========================================================
-
-  Widget _buildSectionTitle(
-    String title,
-    String subtitle,
-    IconData icon,
-  ) {
-    return Row(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color:
-                const Color(0xFF6C63FF)
-                    .withValues(alpha: 0.10),
-            borderRadius:
-                BorderRadius.circular(13),
-          ),
-          child: Icon(
-            icon,
-            color: const Color(0xFF6C63FF),
-            size: 22,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF25324A),
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF7A8499),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // =========================================================
-  // MOTOR ASSESSMENT CARD
-  // =========================================================
-
-  Widget _buildMotorCard(
+  Widget _buildHistoryCard(
     BuildContext context,
-    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+    Map<String, dynamic> data,
   ) {
-    final data = doc.data();
+    final type =
+        data['testType']?.toString() ?? '';
 
-    final testType =
-        data['testType']?.toString() ??
-            'motor_assessment';
+    final name = _testName(type);
 
-    final score =
-        _toDouble(data['score']);
+    final icon = _testIcon(type);
 
-    final tapCount =
-        _toInt(data['tapCount']);
+    final color = _testColor(type);
 
-    final tapRate =
-        _toDouble(data['tapRatePerSecond']);
-
-    final consistency =
-        _toDouble(data['tappingConsistency']);
+    final score = _formatScore(
+      data['score'],
+    );
 
     final createdAt =
-        data['createdAt'] as Timestamp?;
+        data['createdAt'] is Timestamp
+            ? data['createdAt'] as Timestamp
+            : null;
 
-    final date =
-        createdAt?.toDate();
-
-    final testName =
-        _formatTestName(testType);
+    final extra =
+        _extraInformation(data);
 
     return Container(
-      margin:
-          const EdgeInsets.only(bottom: 12),
-      padding:
-          const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(21),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFFE4E9F2),
+          color: const Color(0xFFE2E7F0),
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -368,337 +957,179 @@ class HistoryScreen extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color:
-                      const Color(0xFF8B78D9)
-                          .withValues(alpha: 0.10),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius:
-                      BorderRadius.circular(14),
+                      BorderRadius.circular(15),
                 ),
-                child: const Icon(
-                  Icons.psychology_alt_rounded,
-                  color: Color(0xFF8B78D9),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 25,
                 ),
               ),
-              const SizedBox(width: 12),
+
+              const SizedBox(width: 13),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment:
                       CrossAxisAlignment.start,
                   children: [
                     Text(
-                      testName,
+                      name,
                       style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight:
-                            FontWeight.w800,
-                        color:
-                            Color(0xFF303C52),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF303C52),
                       ),
                     ),
-                    const SizedBox(height: 3),
+
+                    const SizedBox(height: 4),
+
                     Text(
-                      date == null
-                          ? 'Date unavailable'
-                          : _formatDate(date),
+                      _formatDate(createdAt),
                       style: const TextStyle(
                         fontSize: 11.5,
-                        color:
-                            Color(0xFF7A8499),
+                        color: Color(0xFF8A94A5),
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
 
-          const SizedBox(height: 16),
-
-          if (score != null)
-            _buildMetricRow(
-              'Movement Score',
-              score.toStringAsFixed(1),
-              Icons.analytics_outlined,
-            ),
-
-          if (tapCount != null)
-            _buildMetricRow(
-              'Tap Count',
-              '$tapCount',
-              Icons.touch_app_rounded,
-            ),
-
-          if (tapRate != null)
-            _buildMetricRow(
-              'Tap Rate',
-              '${tapRate.toStringAsFixed(2)} /s',
-              Icons.speed_rounded,
-            ),
-
-          if (consistency != null)
-            _buildMetricRow(
-              'Tapping Consistency',
-              '${(consistency * 100).toStringAsFixed(1)}%',
-              Icons.waves_rounded,
-            ),
-        ],
-      ),
-    );
-  }
-
-  // =========================================================
-  // SYMPTOM CARD
-  // =========================================================
-
-  Widget _buildSymptomCard(
-    SymptomModel item,
-  ) {
-    return Container(
-      margin:
-          const EdgeInsets.only(bottom: 12),
-      padding:
-          const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(21),
-        border: Border.all(
-          color: const Color(0xFFE4E9F2),
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color:
-                      const Color(0xFF4D8EDC)
-                          .withValues(alpha: 0.10),
-                  borderRadius:
-                      BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.monitor_heart_outlined,
-                  color: Color(0xFF4D8EDC),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Symptom Assessment',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight:
-                            FontWeight.w800,
-                        color:
-                            Color(0xFF303C52),
-                      ),
+              Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.end,
+                children: [
+                  const Text(
+                    'Score',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: Color(0xFF8A94A5),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      _formatDate(item.date),
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        color:
-                            Color(0xFF7A8499),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color:
-                      const Color(0xFFEAF7F1),
-                  borderRadius:
-                      BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${item.healthScore.toStringAsFixed(0)}%',
-                  style: const TextStyle(
-                    fontWeight:
-                        FontWeight.w800,
-                    color:
-                        Color(0xFF4C9A78),
                   ),
-                ),
+
+                  const SizedBox(height: 2),
+
+                  Text(
+                    score,
+                    style: TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w900,
+                      color: color,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
 
-          const SizedBox(height: 16),
+          if (extra.isNotEmpty) ...[
+            const SizedBox(height: 14),
 
-          _buildMetricRow(
-            'Tremor',
-            item.tremor.toStringAsFixed(1),
-            Icons.vibration_rounded,
-          ),
-
-          _buildMetricRow(
-            'Walking Difficulty',
-            item.walkingDifficulty
-                .toStringAsFixed(1),
-            Icons.directions_walk_rounded,
-          ),
-
-          _buildMetricRow(
-            'Speech Difficulty',
-            item.speechDifficulty
-                .toStringAsFixed(1),
-            Icons.record_voice_over_outlined,
-          ),
-
-          _buildMetricRow(
-            'Balance',
-            item.balanceProblem
-                .toStringAsFixed(1),
-            Icons.accessibility_new_rounded,
-          ),
-
-          _buildMetricRow(
-            'Sleep Quality',
-            item.sleepQuality
-                .toStringAsFixed(1),
-            Icons.bedtime_outlined,
-          ),
-
-          _buildMetricRow(
-            'Mood',
-            item.mood.toStringAsFixed(1),
-            Icons.sentiment_satisfied_alt_outlined,
-          ),
-
-          const SizedBox(height: 8),
-
-          Text(
-            'Medication: '
-            '${item.medicationTaken ? "Taken" : "Not Taken"}',
-            style: const TextStyle(
-              fontSize: 12.5,
-              color: Color(0xFF68758A),
-            ),
-          ),
-
-          if (item.notes.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Notes: ${item.notes}',
-              style: const TextStyle(
-                fontSize: 12.5,
-                color: Color(0xFF68758A),
+            Container(
+              width: double.infinity,
+              padding:
+                  const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F9FE),
+                borderRadius:
+                    BorderRadius.circular(12),
+              ),
+              child: Text(
+                extra,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: Color(0xFF69758A),
+                ),
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
 
-  // =========================================================
-  // METRIC ROW
-  // =========================================================
+          const SizedBox(height: 13),
 
-  Widget _buildMetricRow(
-    String label,
-    String value,
-    IconData icon,
-  ) {
-    return Padding(
-      padding:
-          const EdgeInsets.only(bottom: 9),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 18,
-            color: const Color(0xFF8B78D9),
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 12.5,
-                color: Color(0xFF68758A),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                _showAssessmentSummary(
+                  context,
+                  data,
+                );
+              },
+              icon: Icon(
+                Icons.auto_awesome_rounded,
+                size: 18,
+                color: color,
+              ),
+              label: Text(
+                'View Summary',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(
+                  color: color.withValues(alpha: 0.45),
+                ),
+                shape:
+                    RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(13),
+                ),
               ),
             ),
           ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF303C52),
-            ),
-          ),
         ],
       ),
     );
   }
-
-  // =========================================================
-  // EMPTY STATE
-  // =========================================================
 
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
-        padding:
-            const EdgeInsets.all(30),
+        padding: const EdgeInsets.all(30),
         child: Column(
           mainAxisAlignment:
               MainAxisAlignment.center,
           children: [
-            const SizedBox(height: 70),
             Container(
               width: 90,
               height: 90,
               decoration: BoxDecoration(
-                color:
-                    const Color(0xFF6C63FF)
-                        .withValues(alpha: 0.10),
-                shape: BoxShape.circle,
+                color: const Color(0xFFEAF2FF),
+                borderRadius:
+                    BorderRadius.circular(28),
               ),
               child: const Icon(
                 Icons.history_rounded,
-                size: 44,
-                color: Color(0xFF6C63FF),
+                size: 45,
+                color: Color(0xFF4D8EDC),
               ),
             ),
+
             const SizedBox(height: 20),
+
             const Text(
-              'No Assessments Yet',
+              'No assessments yet',
               style: TextStyle(
                 fontSize: 21,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFF25324A),
               ),
             ),
+
             const SizedBox(height: 8),
+
             const Text(
-              'Complete a symptom or motor assessment '
-              'and your results will appear here.',
+              'Complete a motor assessment and '
+              'your results will appear here.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
@@ -712,154 +1143,55 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
-  // =========================================================
-  // LOADING
-  // =========================================================
-
-  Widget _buildLoadingScreen() {
+  Widget _buildNoUser() {
     return const Center(
-      child: CircularProgressIndicator(),
-    );
-  }
-
-  // =========================================================
-  // NO USER
-  // =========================================================
-
-  Widget _buildNoUser(
-    BuildContext context,
-    List<SymptomModel> history,
-  ) {
-    if (history.isEmpty) {
-      return _buildEmptyState();
-    }
-
-    return ListView(
-      padding:
-          const EdgeInsets.all(20),
-      children: [
-        _buildHeader(
-          symptomCount: history.length,
-          motorCount: 0,
-        ),
-        const SizedBox(height: 22),
-        _buildSectionTitle(
-          'Symptom Assessments',
-          'Your recorded daily symptoms',
-          Icons.monitor_heart_outlined,
-        ),
-        const SizedBox(height: 12),
-        ...history.reversed.map(
-          _buildSymptomCard,
-        ),
-        const SizedBox(height: 20),
-        _buildDisclaimer(),
-      ],
-    );
-  }
-
-  // =========================================================
-  // DISCLAIMER
-  // =========================================================
-
-  Widget _buildDisclaimer() {
-    return Container(
-      padding:
-          const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF9ED),
-        borderRadius:
-            BorderRadius.circular(17),
-        border: Border.all(
-          color: const Color(0xFFF0DFB8),
+      child: Text(
+        'Please log in to view assessment history.',
+        style: TextStyle(
+          color: Color(0xFF68758A),
         ),
       ),
-      child: const Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.info_outline_rounded,
-            color: Color(0xFFB58532),
-            size: 20,
-          ),
-          SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              'Assessment results are intended for '
-              'screening and progress tracking and '
-              'should not be treated as a standalone '
-              'medical diagnosis.',
+    );
+  }
+
+  Widget _buildError(String error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(25),
+        child: Column(
+          mainAxisAlignment:
+              MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 50,
+              color: Colors.redAccent,
+            ),
+
+            const SizedBox(height: 15),
+
+            const Text(
+              'Unable to load assessment history',
+              textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 11.5,
-                height: 1.45,
-                color: Color(0xFF806B43),
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
               ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 8),
+
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
       ),
     );
-  }
-
-  // =========================================================
-  // HELPERS
-  // =========================================================
-
-  double? _toDouble(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-
-    if (value is num) {
-      return value.toDouble();
-    }
-
-    return double.tryParse(
-      value.toString(),
-    );
-  }
-
-  int? _toInt(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-
-    if (value is num) {
-      return value.toInt();
-    }
-
-    return int.tryParse(
-      value.toString(),
-    );
-  }
-
-  String _formatTestName(String testType) {
-    switch (testType) {
-      case 'finger_tapping':
-        return 'Finger Tapping';
-
-      case 'spiral_trace':
-        return 'Spiral Trace';
-
-      case 'writing_test':
-        return 'Writing Test';
-
-      case 'line_tracing':
-        return 'Line Tracing';
-
-      default:
-        return 'Motor Assessment';
-    }
-  }
-
-  String _formatDate(DateTime date) {
-    final day =
-        date.day.toString().padLeft(2, '0');
-
-    final month =
-        date.month.toString().padLeft(2, '0');
-
-    return '$day/$month/${date.year}';
   }
 }

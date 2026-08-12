@@ -18,8 +18,16 @@ class _MotorAssessmentScreenState
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
+  // =========================================================
+  // DRAWING DATA
+  // =========================================================
+
+  final ValueNotifier<List<Offset>> _pointsNotifier =
+      ValueNotifier<List<Offset>>(<Offset>[]);
+
   final List<Offset> _userPoints = [];
 
+  bool _testStarted = false;
   bool _isDrawing = false;
   bool _hasCompleted = false;
   bool _isSaving = false;
@@ -30,6 +38,28 @@ class _MotorAssessmentScreenState
 
   String _resultTitle = '';
   String _resultDescription = '';
+
+  // =========================================================
+  // CONSTANTS
+  // =========================================================
+
+  static const double _spiralTurns = 3.2;
+
+  static const double _minimumPointDistance = 1.5;
+
+  // =========================================================
+  // DISPOSE
+  // =========================================================
+
+  @override
+  void dispose() {
+    _pointsNotifier.dispose();
+    super.dispose();
+  }
+
+  // =========================================================
+  // BUILD
+  // =========================================================
 
   @override
   Widget build(BuildContext context) {
@@ -47,122 +77,214 @@ class _MotorAssessmentScreenState
           ),
         ),
       ),
-      body: SingleChildScrollView(
+      body: SafeArea(
+        child: _testStarted && !_hasCompleted
+            ? _buildActiveTestScreen()
+            : _buildNormalScreen(),
+      ),
+    );
+  }
+
+  // =========================================================
+  // NORMAL SCREEN
+  // =========================================================
+
+  Widget _buildNormalScreen() {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        8,
+        20,
+        35,
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          _buildHeader(),
+
+          const SizedBox(height: 20),
+
+          _buildInstructionCard(),
+
+          const SizedBox(height: 20),
+
+          _buildTracingCard(),
+
+          if (_hasCompleted) ...[
+            const SizedBox(height: 20),
+            _buildResultCard(),
+            const SizedBox(height: 18),
+            _buildDisclaimer(),
+            const SizedBox(height: 20),
+            _buildSaveButton(),
+            const SizedBox(height: 12),
+            _buildRetestButton(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // =========================================================
+  // ACTIVE TEST SCREEN
+  // =========================================================
+
+  Widget _buildActiveTestScreen() {
+    return PopScope(
+      canPop: false,
+      child: Padding(
         padding: const EdgeInsets.fromLTRB(
-          20,
+          16,
           8,
+          16,
           20,
-          35,
         ),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
           children: [
-            _buildHeader(),
+            _buildActiveTestHeader(),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
 
-            _buildInstructionCard(),
+            Expanded(
+              child: _buildFixedDrawingArea(),
+            ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
 
-            _buildTracingCard(),
-
-            const SizedBox(height: 20),
-
-            if (_hasCompleted)
-              _buildResultCard(),
-
-            if (_hasCompleted)
-              const SizedBox(height: 18),
-
-            if (_hasCompleted)
-              _buildDisclaimer(),
-
-            const SizedBox(height: 20),
-
-            if (_hasCompleted)
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton.icon(
-                  onPressed:
-                      _isSaving ? null : _saveResult,
-                  icon: _isSaving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child:
-                              CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.cloud_upload_outlined,
-                        ),
-                  label: Text(
-                    _isSaving
-                        ? 'Saving Result...'
-                        : 'Save Assessment Result',
-                    style: const TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        const Color(0xFF6385E5),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(17),
-                    ),
-                  ),
-                ),
-              ),
-
-            if (_hasCompleted)
-              const SizedBox(height: 12),
-
-            if (_hasCompleted)
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: OutlinedButton.icon(
-                  onPressed: _resetTest,
-                  icon: const Icon(
-                    Icons.refresh_rounded,
-                  ),
-                  label: const Text(
-                    'Try Again',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor:
-                        const Color(0xFF6385E5),
-                    side: const BorderSide(
-                      color: Color(0xFFB9C8EE),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(17),
-                    ),
-                  ),
-                ),
-              ),
+            _buildActiveTestInstruction(),
           ],
         ),
       ),
     );
   }
 
-  // ─────────────────────────────────────────────
+  // =========================================================
+  // ACTIVE TEST HEADER
+  // =========================================================
+
+  Widget _buildActiveTestHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 12,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius:
+            BorderRadius.circular(17),
+        border: Border.all(
+          color: const Color(0xFFE3E8F2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFEEF0),
+              borderRadius:
+                  BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.circle,
+              size: 12,
+              color: Color(0xFFD86B78),
+            ),
+          ),
+          const SizedBox(width: 11),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Test in progress',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF25324A),
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Keep your finger on the spiral and trace slowly.',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFF7E899C),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(
+              horizontal: 9,
+              vertical: 6,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFEEF0),
+              borderRadius:
+                  BorderRadius.circular(20),
+            ),
+            child: const Text(
+              'RECORDING',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFFD05D6B),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================
+  // ACTIVE TEST INSTRUCTION
+  // =========================================================
+
+  Widget _buildActiveTestInstruction() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF2FF),
+        borderRadius:
+            BorderRadius.circular(15),
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            Icons.touch_app_rounded,
+            size: 20,
+            color: Color(0xFF6C63FF),
+          ),
+          SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              'Trace from the outer starting point toward the center. '
+              'Lift your finger when you finish.',
+              style: TextStyle(
+                fontSize: 11.5,
+                height: 1.4,
+                color: Color(0xFF5F6D86),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================
   // HEADER
-  // ─────────────────────────────────────────────
+  // =========================================================
 
   Widget _buildHeader() {
     return Container(
@@ -177,7 +299,8 @@ class _MotorAssessmentScreenState
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(25),
+        borderRadius:
+            BorderRadius.circular(25),
       ),
       child: const Column(
         crossAxisAlignment:
@@ -212,9 +335,9 @@ class _MotorAssessmentScreenState
     );
   }
 
-  // ─────────────────────────────────────────────
+  // =========================================================
   // INSTRUCTIONS
-  // ─────────────────────────────────────────────
+  // =========================================================
 
   Widget _buildInstructionCard() {
     return Container(
@@ -222,7 +345,8 @@ class _MotorAssessmentScreenState
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius:
+            BorderRadius.circular(20),
         border: Border.all(
           color: const Color(0xFFE3E8F2),
         ),
@@ -260,9 +384,9 @@ class _MotorAssessmentScreenState
                 ),
                 SizedBox(height: 6),
                 Text(
-                  'Place your finger on the starting point '
-                  'and slowly trace the spiral toward the center. '
-                  'Try to stay close to the guide.',
+                  'Press Start Test first. The screen will lock in place '
+                  'so you can trace without accidentally scrolling. '
+                  'Start from the marked point and slowly follow the spiral.',
                   style: TextStyle(
                     fontSize: 13,
                     height: 1.45,
@@ -277,9 +401,9 @@ class _MotorAssessmentScreenState
     );
   }
 
-  // ─────────────────────────────────────────────
-  // DRAWING AREA
-  // ─────────────────────────────────────────────
+  // =========================================================
+  // TRACING CARD
+  // =========================================================
 
   Widget _buildTracingCard() {
     return Container(
@@ -287,7 +411,8 @@ class _MotorAssessmentScreenState
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius:
+            BorderRadius.circular(24),
         boxShadow: const [
           BoxShadow(
             color: Color(0x10000000),
@@ -317,7 +442,7 @@ class _MotorAssessmentScreenState
                     ),
                     SizedBox(height: 3),
                     Text(
-                      'Follow the dotted guide',
+                      'Start the test when you are ready',
                       style: TextStyle(
                         fontSize: 12,
                         color: Color(0xFF8993A6),
@@ -326,8 +451,12 @@ class _MotorAssessmentScreenState
                   ],
                 ),
               ),
-              if (_isDrawing)
-                const _LiveIndicator(),
+              if (_hasCompleted)
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF55A88A),
+                  size: 25,
+                ),
             ],
           ),
 
@@ -340,125 +469,262 @@ class _MotorAssessmentScreenState
                   BorderRadius.circular(20),
               child: Container(
                 color: const Color(0xFFFAFBFF),
-                child: GestureDetector(
-                  onPanStart: (details) {
-                    if (_hasCompleted) return;
-
-                    setState(() {
-                      _isDrawing = true;
-                      _userPoints.clear();
-                      _userPoints.add(
-                        details.localPosition,
-                      );
-                    });
-                  },
-                  onPanUpdate: (details) {
-                    if (_hasCompleted ||
-                        !_isDrawing) {
-                      return;
-                    }
-
-                    setState(() {
-                      _userPoints.add(
-                        details.localPosition,
-                      );
-                    });
-                  },
-                  onPanEnd: (_) {
-                    if (_hasCompleted ||
-                        !_isDrawing) {
-                      return;
-                    }
-
-                    setState(() {
-                      _isDrawing = false;
-                    });
-
-                    _analyzeDrawing();
-                  },
-                  child: CustomPaint(
-                    painter: _SpiralPainter(
-                      userPoints: _userPoints,
-                    ),
-                    child: const SizedBox.expand(),
-                  ),
-                ),
+                child: _buildPreviewDrawingArea(),
               ),
             ),
           ),
 
           const SizedBox(height: 14),
 
-          Row(
-            children: [
-              Expanded(
-                child: _infoChip(
-                  Icons.edit_rounded,
-                  'Draw slowly',
+          if (!_hasCompleted)
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton.icon(
+                onPressed: _startTest,
+                icon: const Icon(
+                  Icons.play_arrow_rounded,
+                ),
+                label: const Text(
+                  'Start Test',
+                  style: TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      const Color(0xFF6385E5),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape:
+                      RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(17),
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _infoChip(
-                  Icons.track_changes_rounded,
-                  'Follow guide',
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 10),
-
-          const Text(
-            'The test records movement only while you trace.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11,
-              color: Color(0xFF9AA3B3),
             ),
-          ),
+
+          if (!_hasCompleted) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'The test will begin after you press Start Test.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                color: Color(0xFF9AA3B3),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _infoChip(
-    IconData icon,
-    String text,
-  ) {
+  // =========================================================
+  // PREVIEW DRAWING AREA
+  // =========================================================
+
+  Widget _buildPreviewDrawingArea() {
+    return CustomPaint(
+      painter: const _SpiralPainter(
+        userPoints: <Offset>[],
+      ),
+      child: const SizedBox.expand(),
+    );
+  }
+
+  // =========================================================
+  // FIXED DRAWING AREA
+  // =========================================================
+
+  Widget _buildFixedDrawingArea() {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(vertical: 10),
+      width: double.infinity,
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F8FD),
-        borderRadius: BorderRadius.circular(13),
-      ),
-      child: Row(
-        mainAxisAlignment:
-            MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 17,
-            color: const Color(0xFF6C63FF),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF68758A),
-            ),
+        color: Colors.white,
+        borderRadius:
+            BorderRadius.circular(24),
+        border: Border.all(
+          color: const Color(0xFFE1E6F0),
+          width: 1,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 18,
+            offset: Offset(0, 6),
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius:
+            BorderRadius.circular(23),
+        child: Container(
+          color: const Color(0xFFFAFBFF),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+
+            // -------------------------------------------------
+            // START DRAWING
+            // -------------------------------------------------
+
+            onPanStart: (details) {
+              if (!_testStarted ||
+                  _hasCompleted) {
+                return;
+              }
+
+              _userPoints.clear();
+
+              final point =
+                  details.localPosition;
+
+              _userPoints.add(point);
+
+              _pointsNotifier.value =
+                  List<Offset>.from(
+                _userPoints,
+              );
+
+              if (mounted) {
+                setState(() {
+                  _isDrawing = true;
+                });
+              }
+            },
+
+            // -------------------------------------------------
+            // DRAWING UPDATE
+            // -------------------------------------------------
+
+            onPanUpdate: (details) {
+              if (!_testStarted ||
+                  _hasCompleted ||
+                  !_isDrawing) {
+                return;
+              }
+
+              final point =
+                  details.localPosition;
+
+              if (_userPoints.isNotEmpty) {
+                final previous =
+                    _userPoints.last;
+
+                final distance =
+                    (point - previous).distance;
+
+                if (distance <
+                    _minimumPointDistance) {
+                  return;
+                }
+              }
+
+              _userPoints.add(point);
+
+              _pointsNotifier.value =
+                  List<Offset>.from(
+                _userPoints,
+              );
+            },
+
+            // -------------------------------------------------
+            // END DRAWING
+            // -------------------------------------------------
+
+            onPanEnd: (_) {
+              if (!_testStarted ||
+                  _hasCompleted ||
+                  !_isDrawing) {
+                return;
+              }
+
+              if (mounted) {
+                setState(() {
+                  _isDrawing = false;
+                });
+              }
+
+              _analyzeDrawing();
+            },
+
+            // -------------------------------------------------
+            // CANCEL
+            // -------------------------------------------------
+
+            onPanCancel: () {
+              if (!_testStarted ||
+                  _hasCompleted ||
+                  !_isDrawing) {
+                return;
+              }
+
+              if (mounted) {
+                setState(() {
+                  _isDrawing = false;
+                });
+              }
+
+              if (_userPoints.length >= 20) {
+                _analyzeDrawing();
+              }
+            },
+
+            child:
+                ValueListenableBuilder<
+                    List<Offset>>(
+              valueListenable:
+                  _pointsNotifier,
+              builder: (
+                context,
+                points,
+                child,
+              ) {
+                return CustomPaint(
+                  painter: _SpiralPainter(
+                    userPoints: points,
+                  ),
+                  child:
+                      const SizedBox.expand(),
+                );
+              },
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  // ─────────────────────────────────────────────
+  // =========================================================
+  // START TEST
+  // =========================================================
+
+  void _startTest() {
+    _userPoints.clear();
+
+    _pointsNotifier.value =
+        <Offset>[];
+
+    setState(() {
+      _testStarted = true;
+      _isDrawing = false;
+      _hasCompleted = false;
+      _isSaving = false;
+
+      _deviationScore = null;
+      _smoothnessScore = null;
+      _screeningScore = null;
+
+      _resultTitle = '';
+      _resultDescription = '';
+    });
+  }
+
+  // =========================================================
   // ANALYSIS
-  // ─────────────────────────────────────────────
+  // =========================================================
 
   void _analyzeDrawing() {
     if (_userPoints.length < 20) {
@@ -466,81 +732,45 @@ class _MotorAssessmentScreenState
         'Please trace more of the pattern and try again.',
       );
 
-      setState(() {
-        _userPoints.clear();
-      });
+      _userPoints.clear();
+
+      _pointsNotifier.value =
+          <Offset>[];
+
+      if (mounted) {
+        setState(() {
+          _testStarted = true;
+          _isDrawing = false;
+        });
+      }
 
       return;
     }
 
-    final target =
-        _generateSpiralPoints();
+    final renderBox =
+        context.findRenderObject()
+            as RenderBox?;
 
-    double totalDeviation = 0;
+    final drawingSize =
+        renderBox?.size.width ??
+            MediaQuery.of(context).size.width;
 
-    for (final point in _userPoints) {
-      double nearestDistance =
-          double.infinity;
-
-      for (final targetPoint in target) {
-        final distance =
-            (point - targetPoint).distance;
-
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-        }
-      }
-
-      totalDeviation += nearestDistance;
-    }
+    final normalizedPoints =
+        _normalizePoints(
+      _userPoints,
+      drawingSize,
+    );
 
     final averageDeviation =
-        totalDeviation / _userPoints.length;
-
-    // Estimate movement smoothness.
-    double totalDirectionChange = 0;
-
-    for (int i = 2;
-        i < _userPoints.length;
-        i++) {
-      final p1 = _userPoints[i - 2];
-      final p2 = _userPoints[i - 1];
-      final p3 = _userPoints[i];
-
-      final v1 = p2 - p1;
-      final v2 = p3 - p2;
-
-      if (v1.distance == 0 ||
-          v2.distance == 0) {
-        continue;
-      }
-
-      final angle1 =
-          math.atan2(v1.dy, v1.dx);
-
-      final angle2 =
-          math.atan2(v2.dy, v2.dx);
-
-      double difference =
-          (angle2 - angle1).abs();
-
-      if (difference > math.pi) {
-        difference =
-            2 * math.pi - difference;
-      }
-
-      totalDirectionChange += difference;
-    }
+        _calculateAverageDeviation(
+      normalizedPoints,
+    );
 
     final smoothnessPenalty =
-        _userPoints.length > 2
-            ? (totalDirectionChange /
-                    (_userPoints.length - 2))
-                .toDouble()
-            : 0.0;
+        _calculateSmoothness(
+      normalizedPoints,
+    );
 
-    // Convert measurements into a simple
-    // screening-oriented score.
     final deviationComponent =
         (averageDeviation / 35)
             .clamp(0.0, 1.0);
@@ -554,29 +784,39 @@ class _MotorAssessmentScreenState
         (smoothnessComponent * 0.30);
 
     final screeningScore =
-        (combined * 100).clamp(0.0, 100.0);
+        (combined * 100)
+            .clamp(0.0, 100.0)
+            .toDouble();
 
     String title;
     String description;
 
     if (screeningScore < 30) {
-      title = 'Movement looks relatively steady';
+      title =
+          'Movement looks relatively steady';
+
       description =
           'Your traced path stayed reasonably close '
           'to the guided pattern during this test.';
     } else if (screeningScore < 60) {
-      title = 'Some movement variation detected';
+      title =
+          'Some movement variation detected';
+
       description =
           'The traced path showed some deviation or '
           'irregular movement. Consider repeating the '
           'test under similar conditions.';
     } else {
-      title = 'Higher movement variation detected';
+      title =
+          'Higher movement variation detected';
+
       description =
           'The traced path showed greater deviation '
           'or irregularity during this test. A healthcare '
           'professional should interpret this result.';
     }
+
+    if (!mounted) return;
 
     setState(() {
       _deviationScore =
@@ -588,56 +828,215 @@ class _MotorAssessmentScreenState
       _screeningScore =
           screeningScore;
 
-      _resultTitle = title;
+      _resultTitle =
+          title;
 
       _resultDescription =
           description;
 
+      _isDrawing = false;
+      _testStarted = false;
       _hasCompleted = true;
     });
   }
 
-  // ─────────────────────────────────────────────
-  // SPIRAL GENERATION
-  // ─────────────────────────────────────────────
+  // =========================================================
+  // NORMALIZE POINTS
+  // =========================================================
 
-  List<Offset> _generateSpiralPoints() {
-    const center = Offset(150, 150);
-
-    final List<Offset> points = [];
-
-    const turns = 3.2;
-    const maxRadius = 125.0;
-    const samples = 420;
-
-    for (int i = 0;
-        i < samples;
-        i++) {
-      final t =
-          i / (samples - 1);
-
-      final angle =
-          t * turns * 2 * math.pi;
-
-      final radius =
-          maxRadius * (1 - t);
-
-      points.add(
-        Offset(
-          center.dx +
-              radius * math.cos(angle),
-          center.dy +
-              radius * math.sin(angle),
-        ),
-      );
+  List<Offset> _normalizePoints(
+    List<Offset> points,
+    double drawingSize,
+  ) {
+    if (points.isEmpty ||
+        drawingSize <= 0) {
+      return <Offset>[];
     }
 
-    return points;
+    return points.map((point) {
+      return Offset(
+        point.dx / drawingSize * 300,
+        point.dy / drawingSize * 300,
+      );
+    }).toList();
   }
 
-  // ─────────────────────────────────────────────
+  // =========================================================
+  // DEVIATION
+  // =========================================================
+
+  double _calculateAverageDeviation(
+    List<Offset> points,
+  ) {
+    if (points.isEmpty) {
+      return 0;
+    }
+
+    const center =
+        Offset(150, 150);
+
+    const maxRadius =
+        120.0;
+
+    double totalDeviation = 0;
+
+    for (final point in points) {
+      final dx =
+          point.dx - center.dx;
+
+      final dy =
+          point.dy - center.dy;
+
+      final distanceFromCenter =
+          math.sqrt(
+        dx * dx + dy * dy,
+      );
+
+      double angle =
+          math.atan2(
+        dy,
+        dx,
+      );
+
+      if (angle < 0) {
+        angle += 2 * math.pi;
+      }
+
+      double bestDeviation =
+          double.infinity;
+
+      for (int turn = 0;
+          turn <= 3;
+          turn++) {
+        final totalAngle =
+            angle +
+            (turn * 2 * math.pi);
+
+        final progress =
+            totalAngle /
+                (_spiralTurns *
+                    2 *
+                    math.pi);
+
+        if (progress < 0 ||
+            progress > 1) {
+          continue;
+        }
+
+        final expectedRadius =
+            maxRadius *
+            (1 - progress);
+
+        final deviation =
+            (distanceFromCenter -
+                    expectedRadius)
+                .abs();
+
+        if (deviation <
+            bestDeviation) {
+          bestDeviation =
+              deviation;
+        }
+      }
+
+      if (bestDeviation ==
+          double.infinity) {
+        bestDeviation =
+            distanceFromCenter;
+      }
+
+      totalDeviation +=
+          bestDeviation;
+    }
+
+    return totalDeviation /
+        points.length;
+  }
+
+  // =========================================================
+  // SMOOTHNESS
+  // =========================================================
+
+  double _calculateSmoothness(
+    List<Offset> points,
+  ) {
+    if (points.length < 3) {
+      return 0;
+    }
+
+    double totalDirectionChange =
+        0;
+
+    int validSamples = 0;
+
+    for (int i = 2;
+        i < points.length;
+        i++) {
+      final p1 =
+          points[i - 2];
+
+      final p2 =
+          points[i - 1];
+
+      final p3 =
+          points[i];
+
+      final v1 =
+          p2 - p1;
+
+      final v2 =
+          p3 - p2;
+
+      final distance1 =
+          v1.distance;
+
+      final distance2 =
+          v2.distance;
+
+      if (distance1 < 0.5 ||
+          distance2 < 0.5) {
+        continue;
+      }
+
+      final angle1 =
+          math.atan2(
+        v1.dy,
+        v1.dx,
+      );
+
+      final angle2 =
+          math.atan2(
+        v2.dy,
+        v2.dx,
+      );
+
+      double difference =
+          (angle2 - angle1)
+              .abs();
+
+      if (difference > math.pi) {
+        difference =
+            2 * math.pi -
+                difference;
+      }
+
+      totalDirectionChange +=
+          difference;
+
+      validSamples++;
+    }
+
+    if (validSamples == 0) {
+      return 0;
+    }
+
+    return totalDirectionChange /
+        validSamples;
+  }
+
+  // =========================================================
   // RESULT CARD
-  // ─────────────────────────────────────────────
+  // =========================================================
 
   Widget _buildResultCard() {
     final score =
@@ -677,7 +1076,8 @@ class _MotorAssessmentScreenState
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: resultColor.withValues(
+                  color:
+                      resultColor.withValues(
                     alpha: 0.12,
                   ),
                   borderRadius:
@@ -705,47 +1105,53 @@ class _MotorAssessmentScreenState
           const SizedBox(height: 20),
 
           Center(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: 145,
-                  height: 145,
-                  child: CircularProgressIndicator(
-                    value: score / 100,
-                    strokeWidth: 12,
-                    backgroundColor:
-                        const Color(0xFFECEFF5),
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(
-                      resultColor,
+            child: SizedBox(
+              width: 145,
+              height: 145,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 145,
+                    height: 145,
+                    child:
+                        CircularProgressIndicator(
+                      value: score / 100,
+                      strokeWidth: 12,
+                      backgroundColor:
+                          const Color(0xFFECEFF5),
+                      valueColor:
+                          AlwaysStoppedAnimation<
+                              Color>(
+                        resultColor,
+                      ),
                     ),
                   ),
-                ),
-                Column(
-                  mainAxisSize:
-                      MainAxisSize.min,
-                  children: [
-                    Text(
-                      score.toStringAsFixed(0),
-                      style: TextStyle(
-                        fontSize: 38,
-                        fontWeight:
-                            FontWeight.w800,
-                        color: resultColor,
+                  Column(
+                    mainAxisSize:
+                        MainAxisSize.min,
+                    children: [
+                      Text(
+                        score.toStringAsFixed(0),
+                        style: TextStyle(
+                          fontSize: 38,
+                          fontWeight:
+                              FontWeight.w800,
+                          color: resultColor,
+                        ),
                       ),
-                    ),
-                    const Text(
-                      'variation',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color:
-                            Color(0xFF8993A6),
+                      const Text(
+                        'variation',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color:
+                              Color(0xFF8993A6),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -803,12 +1209,17 @@ class _MotorAssessmentScreenState
     );
   }
 
+  // =========================================================
+  // RESULT METRIC
+  // =========================================================
+
   Widget _resultMetric(
     String title,
     String value,
   ) {
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding:
+          const EdgeInsets.all(13),
       decoration: BoxDecoration(
         color: const Color(0xFFF7F9FE),
         borderRadius:
@@ -838,9 +1249,14 @@ class _MotorAssessmentScreenState
     );
   }
 
+  // =========================================================
+  // DISCLAIMER
+  // =========================================================
+
   Widget _buildDisclaimer() {
     return Container(
-      padding: const EdgeInsets.all(15),
+      padding:
+          const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF9ED),
         borderRadius:
@@ -876,12 +1292,61 @@ class _MotorAssessmentScreenState
     );
   }
 
-  // ─────────────────────────────────────────────
+  // =========================================================
+  // SAVE BUTTON
+  // =========================================================
+
+  Widget _buildSaveButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton.icon(
+        onPressed:
+            _isSaving ? null : _saveResult,
+        icon: _isSaving
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child:
+                    CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(
+                Icons.cloud_upload_outlined,
+              ),
+        label: Text(
+          _isSaving
+              ? 'Saving Result...'
+              : 'Save Assessment Result',
+          style: const TextStyle(
+            fontSize: 15.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor:
+              const Color(0xFF6385E5),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(17),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // =========================================================
   // FIRESTORE
-  // ─────────────────────────────────────────────
+  // =========================================================
 
   Future<void> _saveResult() async {
-    final user = _auth.currentUser;
+    final user =
+        _auth.currentUser;
 
     if (user == null) {
       _showMessage(
@@ -902,28 +1367,21 @@ class _MotorAssessmentScreenState
       await _firestore
           .collection('users')
           .doc(user.uid)
-          .collection('symptom_assessments')
+          .collection('motor_assessments')
           .add({
         'userId': user.uid,
-
         'source':
             'software_motor_assessment',
-
         'testType':
             'guided_spiral_trace',
-
         'screeningScore':
             _screeningScore,
-
         'pathDeviation':
             _deviationScore,
-
         'movementVariation':
             _smoothnessScore,
-
         'result':
             _resultTitle,
-
         'createdAt':
             FieldValue.serverTimestamp(),
       });
@@ -951,29 +1409,70 @@ class _MotorAssessmentScreenState
     }
   }
 
-  // ─────────────────────────────────────────────
+  // =========================================================
+  // RETEST
+  // =========================================================
+
+  Widget _buildRetestButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton.icon(
+        onPressed:
+            _isSaving ? null : _resetTest,
+        icon: const Icon(
+          Icons.refresh_rounded,
+        ),
+        label: const Text(
+          'Try Again',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor:
+              const Color(0xFF8B78D9),
+          side: const BorderSide(
+            color: Color(0xFF8B78D9),
+          ),
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // =========================================================
   // RESET
-  // ─────────────────────────────────────────────
+  // =========================================================
 
   void _resetTest() {
+    _userPoints.clear();
+
+    _pointsNotifier.value =
+        <Offset>[];
+
     setState(() {
-      _userPoints.clear();
-
+      _testStarted = false;
       _isDrawing = false;
-
       _hasCompleted = false;
+      _isSaving = false;
 
       _deviationScore = null;
-
       _smoothnessScore = null;
-
       _screeningScore = null;
 
       _resultTitle = '';
-
       _resultDescription = '';
     });
   }
+
+  // =========================================================
+  // MESSAGE
+  // =========================================================
 
   void _showMessage(String message) {
     if (!mounted) return;
@@ -996,56 +1495,14 @@ class _MotorAssessmentScreenState
   }
 }
 
-// ─────────────────────────────────────────────
-// LIVE INDICATOR
-// ─────────────────────────────────────────────
-
-class _LiveIndicator extends StatelessWidget {
-  const _LiveIndicator();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 5,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEAF7F1),
-        borderRadius:
-            BorderRadius.circular(20),
-      ),
-      child: const Row(
-        children: [
-          Icon(
-            Icons.circle,
-            size: 8,
-            color: Color(0xFF55A88A),
-          ),
-          SizedBox(width: 5),
-          Text(
-            'Recording',
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF4C927A),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
+// =============================================================
 // SPIRAL PAINTER
-// ─────────────────────────────────────────────
+// =============================================================
 
 class _SpiralPainter extends CustomPainter {
   final List<Offset> userPoints;
 
-  _SpiralPainter({
+  const _SpiralPainter({
     required this.userPoints,
   });
 
@@ -1066,7 +1523,10 @@ class _SpiralPainter extends CustomPainter {
         ) *
         0.40;
 
-    // Target spiral
+    // ---------------------------------------------------------
+    // TARGET SPIRAL
+    // ---------------------------------------------------------
+
     final targetPaint = Paint()
       ..color =
           const Color(0xFFB8C3E8)
@@ -1080,7 +1540,8 @@ class _SpiralPainter extends CustomPainter {
         Path();
 
     const turns = 3.2;
-    const samples = 420;
+
+    const samples = 220;
 
     for (int i = 0;
         i < samples;
@@ -1120,13 +1581,15 @@ class _SpiralPainter extends CustomPainter {
       }
     }
 
-    // Draw guide
     canvas.drawPath(
       targetPath,
       targetPaint,
     );
 
-    // Start point
+    // ---------------------------------------------------------
+    // START POINT
+    // ---------------------------------------------------------
+
     final startPaint = Paint()
       ..color =
           const Color(0xFF6C63FF);
@@ -1140,7 +1603,10 @@ class _SpiralPainter extends CustomPainter {
       startPaint,
     );
 
-    // User's drawing
+    // ---------------------------------------------------------
+    // USER TRACE
+    // ---------------------------------------------------------
+
     if (userPoints.isEmpty) {
       return;
     }
@@ -1167,11 +1633,43 @@ class _SpiralPainter extends CustomPainter {
     for (int i = 1;
         i < userPoints.length;
         i++) {
-      userPath.lineTo(
-        userPoints[i].dx,
-        userPoints[i].dy,
+      final previous =
+          userPoints[i - 1];
+
+      final current =
+          userPoints[i];
+
+      final midpoint = Offset(
+        (previous.dx +
+                current.dx) /
+            2,
+        (previous.dy +
+                current.dy) /
+            2,
       );
+
+      if (i == 1) {
+        userPath.lineTo(
+          midpoint.dx,
+          midpoint.dy,
+        );
+      } else {
+        userPath.quadraticBezierTo(
+          previous.dx,
+          previous.dy,
+          midpoint.dx,
+          midpoint.dy,
+        );
+      }
     }
+
+    final last =
+        userPoints.last;
+
+    userPath.lineTo(
+      last.dx,
+      last.dy,
+    );
 
     canvas.drawPath(
       userPath,
@@ -1183,8 +1681,7 @@ class _SpiralPainter extends CustomPainter {
   bool shouldRepaint(
     covariant _SpiralPainter oldDelegate,
   ) {
-    return oldDelegate.userPoints
-            .length !=
-        userPoints.length;
+    return oldDelegate.userPoints !=
+        userPoints;
   }
 }

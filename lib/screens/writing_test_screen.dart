@@ -538,7 +538,7 @@ class _WritingTestScreenState extends State<WritingTestScreen> {
               Expanded(
                 child: _resultItem(
                   'Movement Score',
-                  '${_score?.toStringAsFixed(1) ?? '--'}',
+                  _score?.toStringAsFixed(1) ?? '--',
                   Icons.analytics_outlined,
                 ),
               ),
