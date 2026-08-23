@@ -40,6 +40,8 @@ dependencies:
   firebase_auth: ^6.5.7
   cloud_firestore: ^6.8.0
   fl_chart: ^1.2.0
+  record: ^7.1.1
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:

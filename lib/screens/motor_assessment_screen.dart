@@ -1686,3 +1686,4 @@ class _SpiralPainter extends CustomPainter {
         userPoints;
   }
 }
+

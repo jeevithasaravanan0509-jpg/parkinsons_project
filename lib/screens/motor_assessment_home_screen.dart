@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'finger_tapping_screen.dart';
 import 'line_tracing_screen.dart';
 import 'motor_assessment_screen.dart';
+import 'speech_assessment_screen.dart';
 import 'writing_test_screen.dart';
 
 class MotorAssessmentHomeScreen extends StatelessWidget {
@@ -52,8 +53,8 @@ class MotorAssessmentHomeScreen extends StatelessWidget {
               const SizedBox(height: 6),
 
               const Text(
-                'Complete these short movement tests to '
-                'track motor performance over time.',
+                'Complete these short movement and speech tests '
+                'to track performance over time.',
                 style: TextStyle(
                   fontSize: 13,
                   height: 1.45,
@@ -81,8 +82,7 @@ class MotorAssessmentHomeScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          const MotorAssessmentScreen(),
+                      builder: (_) => const MotorAssessmentScreen(),
                     ),
                   );
                 },
@@ -134,8 +134,7 @@ class MotorAssessmentHomeScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          const WritingTestScreen(),
+                      builder: (_) => const WritingTestScreen(),
                     ),
                   );
                 },
@@ -162,6 +161,32 @@ class MotorAssessmentHomeScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (_) => const FingerTappingTestScreen(),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 14),
+
+              // =====================================================
+              // SPEECH ASSESSMENT
+              // =====================================================
+
+              _buildAssessmentCard(
+                context: context,
+                icon: Icons.record_voice_over_rounded,
+                iconColor: const Color(0xFF7B61C9),
+                iconBackground: const Color(0xFFF0EDFF),
+                title: 'Speech Assessment',
+                description:
+                    'Record a short speech sample to observe '
+                    'basic speech characteristics and performance.',
+                tag: 'Speech',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const SpeechAssessmentScreen(),
                     ),
                   );
                 },
@@ -221,7 +246,7 @@ class MotorAssessmentHomeScreen extends StatelessWidget {
           Text(
             'Use simple software-based tests to observe '
             'hand movement, coordination, precision, '
-            'writing and tapping performance.',
+            'writing, tapping and speech performance.',
             style: TextStyle(
               fontSize: 13.5,
               height: 1.5,
@@ -265,10 +290,6 @@ class MotorAssessmentHomeScreen extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ---------------------------------------------------
-              // ICON
-              // ---------------------------------------------------
-
               Container(
                 width: 50,
                 height: 50,
@@ -285,14 +306,9 @@ class MotorAssessmentHomeScreen extends StatelessWidget {
 
               const SizedBox(width: 14),
 
-              // ---------------------------------------------------
-              // CONTENT
-              // ---------------------------------------------------
-
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
@@ -328,10 +344,6 @@ class MotorAssessmentHomeScreen extends StatelessWidget {
 
                     const SizedBox(height: 10),
 
-                    // ------------------------------------------------
-                    // TAG
-                    // ------------------------------------------------
-
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 9,
@@ -339,8 +351,7 @@ class MotorAssessmentHomeScreen extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: iconBackground,
-                        borderRadius:
-                            BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         tag,
@@ -389,9 +400,9 @@ class MotorAssessmentHomeScreen extends StatelessWidget {
 
           Expanded(
             child: Text(
-              'These assessments are software-based movement '
-              'screening tools. They are intended for tracking '
-              'and observation, not for diagnosing Parkinson’s '
+              'These assessments are software-based screening '
+              'tools. They are intended for tracking and '
+              'observation, not for diagnosing Parkinson’s '
               'disease or any other medical condition.',
               style: TextStyle(
                 fontSize: 11.5,
