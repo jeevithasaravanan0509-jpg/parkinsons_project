@@ -1374,6 +1374,7 @@ class _MotorAssessmentScreenState
             'software_motor_assessment',
         'testType':
             'guided_spiral_trace',
+        'score': _screeningScore,
         'screeningScore':
             _screeningScore,
         'pathDeviation':

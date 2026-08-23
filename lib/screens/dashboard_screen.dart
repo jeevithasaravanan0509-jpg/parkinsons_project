@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'device_connection_screen.dart';
 import 'history_screen.dart';
 import 'medication_screen.dart';
+import 'motor_progress_screen.dart';
 import 'profile_screen.dart';
 import 'reports_screen.dart';
 import 'symptom_tracking_screen.dart';
@@ -200,6 +201,14 @@ class DashboardScreen extends StatelessWidget {
                   icon: Icons.bar_chart_rounded,
                   color: const Color(0xFF9A7EDB),
                   page: const ReportsScreen(),
+                ),
+
+                _dashboardCard(
+                  context,
+                  title: 'Motor\nProgress',
+                  icon: Icons.insights_rounded,
+                  color: const Color(0xFF4D8EDC),
+                  page: const MotorProgressScreen(),
                 ),
               ],
             ),

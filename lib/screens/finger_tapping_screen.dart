@@ -1156,6 +1156,7 @@ class _FingerTappingTestScreenState
           .add({
         'userId': user.uid,
         'testType': 'finger_tapping_test',
+        'score': variationScore,
         'durationSeconds':
             _testDurationSeconds,
         'tapCount': _tapCount,

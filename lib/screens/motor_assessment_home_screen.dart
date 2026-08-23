@@ -108,7 +108,7 @@ class MotorAssessmentHomeScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const LineTracingTestScreen(),
+                      builder: (_) => const LineTracingScreen(),
                     ),
                   );
                 },

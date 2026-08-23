@@ -101,14 +101,15 @@ class HistoryScreen extends StatelessWidget {
     return double.tryParse(value.toString());
   }
 
-  String _formatScore(dynamic score) {
-    final value = _numericValue(score);
+  double? _recordScore(Map<String, dynamic> data) {
+    return _numericValue(
+      data['score'] ?? data['screeningScore'] ?? data['variationScore'],
+    );
+  }
 
-    if (value == null) {
-      return '--';
-    }
-
-    return '${value.toStringAsFixed(1)}%';
+  String _formatRecordScore(Map<String, dynamic> data) {
+    final score = _recordScore(data);
+    return score == null ? '--' : '${score.toStringAsFixed(1)}%';
   }
 
   double? _percentage(dynamic value) {
@@ -168,7 +169,7 @@ class HistoryScreen extends StatelessWidget {
     String testName,
     Map<String, dynamic> data,
   ) {
-    final score = _numericValue(data['score']);
+    final score = _recordScore(data);
 
     final scoreText =
         score != null ? '${score.toStringAsFixed(1)}%' : 'the recorded score';
@@ -284,7 +285,7 @@ class HistoryScreen extends StatelessWidget {
     final color = _testColor(type);
     final icon = _testIcon(type);
 
-    final score = _numericValue(data['score']);
+    final score = _recordScore(data);
 
     final scoreText = score != null
         ? '${score.toStringAsFixed(1)}%'
@@ -928,9 +929,7 @@ class HistoryScreen extends StatelessWidget {
 
     final color = _testColor(type);
 
-    final score = _formatScore(
-      data['score'],
-    );
+    final score = _formatRecordScore(data);
 
     final createdAt =
         data['createdAt'] is Timestamp
