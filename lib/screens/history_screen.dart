@@ -24,6 +24,10 @@ class HistoryScreen extends StatelessWidget {
       return 'Spiral Trace';
     }
 
+    if (value.contains('speech')) {
+      return 'Speech Assessment';
+    }
+
     return 'Motor Assessment';
   }
 
@@ -40,6 +44,9 @@ class HistoryScreen extends StatelessWidget {
 
       case 'Spiral Trace':
         return Icons.gesture_rounded;
+
+      case 'Speech Assessment':
+        return Icons.record_voice_over_rounded;
 
       default:
         return Icons.analytics_rounded;
@@ -59,6 +66,9 @@ class HistoryScreen extends StatelessWidget {
 
       case 'Spiral Trace':
         return const Color(0xFFE28A55);
+
+      case 'Speech Assessment':
+        return const Color(0xFF9B72CF);
 
       default:
         return const Color(0xFF64748B);
@@ -129,13 +139,66 @@ class HistoryScreen extends StatelessWidget {
   String _extraInformation(Map<String, dynamic> data) {
     final parts = <String>[];
 
-    final duration = _numericValue(data['durationSeconds']);
+    final type = _testName(
+      data['testType']?.toString() ?? '',
+    );
+
+    if (type == 'Speech Assessment') {
+      final duration = _numericValue(
+        data['totalDurationSeconds'] ??
+            data['durationSeconds'],
+      );
+
+      if (duration != null) {
+        parts.add(
+          'Duration ${duration.toStringAsFixed(1)} s',
+        );
+      }
+
+      final speechRate = _numericValue(
+        data['speechRate'],
+      );
+
+      if (speechRate != null) {
+        parts.add(
+          'Speech rate ${speechRate.toStringAsFixed(1)}',
+        );
+      }
+
+      final pauseCount = _numericValue(
+        data['pauseCount'],
+      );
+
+      if (pauseCount != null) {
+        parts.add(
+          'Pauses ${pauseCount.toStringAsFixed(0)}',
+        );
+      }
+
+      final pitchVariation = _numericValue(
+        data['pitchVariation'],
+      );
+
+      if (pitchVariation != null) {
+        parts.add(
+          'Pitch variation ${pitchVariation.toStringAsFixed(1)}',
+        );
+      }
+
+      return parts.join(' • ');
+    }
+
+    final duration = _numericValue(
+      data['durationSeconds'],
+    );
 
     if (duration != null) {
       parts.add('${duration.toStringAsFixed(1)} s');
     }
 
-    final smoothness = _percentage(data['smoothness']);
+    final smoothness = _percentage(
+      data['smoothness'],
+    );
 
     if (smoothness != null) {
       parts.add(
@@ -208,7 +271,9 @@ class HistoryScreen extends StatelessWidget {
         final taps =
             data['tapCount'] ?? data['taps'] ?? data['totalTaps'];
 
-        final duration = _numericValue(data['durationSeconds']);
+        final duration = _numericValue(
+          data['durationSeconds'],
+        );
 
         if (taps != null && duration != null) {
           return 'You completed $taps recorded taps in '
@@ -241,6 +306,85 @@ class HistoryScreen extends StatelessWidget {
             'during the assessment. The $scoreText score represents the '
             'movement performance measured during the tracing task.';
 
+      case 'Speech Assessment':
+        final speechRate = _numericValue(
+          data['speechRate'],
+        );
+
+        final pauseCount = _numericValue(
+          data['pauseCount'],
+        );
+
+        final pitchVariation = _numericValue(
+          data['pitchVariation'],
+        );
+
+        final loudness = _numericValue(
+          data['averageLoudnessDb'],
+        );
+
+        final speechActivity = _percentage(
+          data['speechActivityRatio'],
+        );
+
+        final breathiness = _numericValue(
+          data['breathinessIndicator'],
+        );
+
+        final details = <String>[];
+
+        if (speechRate != null) {
+          details.add(
+            'estimated speech rate of '
+            '${speechRate.toStringAsFixed(1)}',
+          );
+        }
+
+        if (pauseCount != null) {
+          details.add(
+            '${pauseCount.toStringAsFixed(0)} detected pauses',
+          );
+        }
+
+        if (pitchVariation != null) {
+          details.add(
+            'pitch variation of '
+            '${pitchVariation.toStringAsFixed(1)}',
+          );
+        }
+
+        if (loudness != null) {
+          details.add(
+            'average voice intensity of '
+            '${loudness.toStringAsFixed(1)} dB',
+          );
+        }
+
+        if (speechActivity != null) {
+          details.add(
+            '${speechActivity.toStringAsFixed(1)}% speech activity',
+          );
+        }
+
+        if (breathiness != null) {
+          details.add(
+            'a breathiness indicator of '
+            '${breathiness.toStringAsFixed(1)}',
+          );
+        }
+
+        if (details.isNotEmpty) {
+          return 'The speech assessment analyzed '
+              '${details.join(', ')}. '
+              'The $scoreText score is an experimental acoustic '
+              'speech index based on the measurements collected '
+              'during the assessment.';
+        }
+
+        return 'Your speech sample was recorded and analyzed using '
+            'the acoustic measurements collected during the assessment. '
+            'The $scoreText score is an experimental speech index.';
+
       default:
         return 'Your motor movement was recorded during this assessment. '
             'The $scoreText score represents the movement performance '
@@ -268,6 +412,15 @@ class HistoryScreen extends StatelessWidget {
       case 'Spiral Trace':
         return 'The Spiral Trace score is based on movement '
             'characteristics recorded while following the spiral path.';
+
+      case 'Speech Assessment':
+        return 'The Speech Assessment score is an experimental composite '
+            'index based on acoustic measurements collected from the '
+            'recorded speech samples. These measurements include speech '
+            'activity, pauses, speech rate, pitch characteristics, '
+            'voice intensity, voice stability, and the breathiness '
+            'indicator. It is intended for progress tracking and '
+            'does not provide a medical diagnosis.';
 
       default:
         return 'The score is calculated from movement measurements '
@@ -301,8 +454,11 @@ class HistoryScreen extends StatelessWidget {
       data,
     );
 
+    final isSpeech = testName == 'Speech Assessment';
+
     final duration = _numericValue(
-      data['durationSeconds'],
+      data['durationSeconds'] ??
+          data['totalDurationSeconds'],
     );
 
     final smoothness = _percentage(
@@ -316,6 +472,46 @@ class HistoryScreen extends StatelessWidget {
 
     final strokes = data['strokeCount'];
 
+    final speechRate = _numericValue(
+      data['speechRate'],
+    );
+
+    final pauseCount = _numericValue(
+      data['pauseCount'],
+    );
+
+    final averagePause = _numericValue(
+      data['averagePauseDuration'],
+    );
+
+    final pitchMean = _numericValue(
+      data['pitchMean'],
+    );
+
+    final pitchVariation = _numericValue(
+      data['pitchVariation'],
+    );
+
+    final pitchStability = _numericValue(
+      data['pitchStability'],
+    );
+
+    final loudness = _numericValue(
+      data['averageLoudnessDb'],
+    );
+
+    final voiceStability = _numericValue(
+      data['voiceStability'],
+    );
+
+    final breathiness = _numericValue(
+      data['breathinessIndicator'],
+    );
+
+    final speechActivity = _percentage(
+      data['speechActivityRatio'],
+    );
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -325,7 +521,7 @@ class HistoryScreen extends StatelessWidget {
           child: Container(
             width: double.infinity,
             constraints: const BoxConstraints(
-              maxHeight: 650,
+              maxHeight: 700,
             ),
             padding: const EdgeInsets.fromLTRB(
               22,
@@ -341,8 +537,7 @@ class HistoryScreen extends StatelessWidget {
             ),
             child: SingleChildScrollView(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Center(
                     child: Container(
@@ -583,6 +778,96 @@ class HistoryScreen extends StatelessWidget {
                           label: 'Strokes',
                           value: strokes.toString(),
                         ),
+
+                      if (isSpeech &&
+                          speechRate != null)
+                        _metricChip(
+                          icon: Icons.speed_rounded,
+                          label: 'Speech rate',
+                          value:
+                              speechRate.toStringAsFixed(1),
+                        ),
+
+                      if (isSpeech &&
+                          pauseCount != null)
+                        _metricChip(
+                          icon: Icons.pause_circle_outline_rounded,
+                          label: 'Pauses',
+                          value:
+                              pauseCount.toStringAsFixed(0),
+                        ),
+
+                      if (isSpeech &&
+                          averagePause != null)
+                        _metricChip(
+                          icon: Icons.hourglass_bottom_rounded,
+                          label: 'Avg pause',
+                          value:
+                              '${averagePause.toStringAsFixed(2)} s',
+                        ),
+
+                      if (isSpeech &&
+                          pitchMean != null)
+                        _metricChip(
+                          icon: Icons.graphic_eq_rounded,
+                          label: 'Pitch',
+                          value:
+                              pitchMean.toStringAsFixed(1),
+                        ),
+
+                      if (isSpeech &&
+                          pitchVariation != null)
+                        _metricChip(
+                          icon: Icons.multiline_chart_rounded,
+                          label: 'Pitch variation',
+                          value:
+                              pitchVariation.toStringAsFixed(1),
+                        ),
+
+                      if (isSpeech &&
+                          pitchStability != null)
+                        _metricChip(
+                          icon: Icons.show_chart_rounded,
+                          label: 'Pitch stability',
+                          value:
+                              pitchStability.toStringAsFixed(1),
+                        ),
+
+                      if (isSpeech &&
+                          loudness != null)
+                        _metricChip(
+                          icon: Icons.volume_up_rounded,
+                          label: 'Voice intensity',
+                          value:
+                              '${loudness.toStringAsFixed(1)} dB',
+                        ),
+
+                      if (isSpeech &&
+                          voiceStability != null)
+                        _metricChip(
+                          icon: Icons.graphic_eq_rounded,
+                          label: 'Voice stability',
+                          value:
+                              voiceStability.toStringAsFixed(1),
+                        ),
+
+                      if (isSpeech &&
+                          breathiness != null)
+                        _metricChip(
+                          icon: Icons.air_rounded,
+                          label: 'Breathiness',
+                          value:
+                              breathiness.toStringAsFixed(1),
+                        ),
+
+                      if (isSpeech &&
+                          speechActivity != null)
+                        _metricChip(
+                          icon: Icons.multiline_chart_rounded,
+                          label: 'Speech activity',
+                          value:
+                              '${speechActivity.toStringAsFixed(1)}%',
+                        ),
                     ],
                   ),
 
@@ -596,23 +881,28 @@ class HistoryScreen extends StatelessWidget {
                       borderRadius:
                           BorderRadius.circular(15),
                     ),
-                    child: const Row(
+                    child: Row(
                       crossAxisAlignment:
                           CrossAxisAlignment.start,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.info_outline_rounded,
                           size: 20,
                           color: Color(0xFFB47B21),
                         ),
-                        SizedBox(width: 10),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'This score describes movement performance '
-                            'recorded during this assessment. It is '
-                            'intended for progress tracking and is not '
-                            'a standalone medical diagnosis.',
-                            style: TextStyle(
+                            isSpeech
+                                ? 'This speech assessment uses experimental '
+                                  'acoustic measurements for progress '
+                                  'tracking. It is not a standalone '
+                                  'medical diagnosis.'
+                                : 'This score describes movement performance '
+                                  'recorded during this assessment. It is '
+                                  'intended for progress tracking and is not '
+                                  'a standalone medical diagnosis.',
+                            style: const TextStyle(
                               fontSize: 11.5,
                               height: 1.45,
                               color: Color(0xFF7D653C),
