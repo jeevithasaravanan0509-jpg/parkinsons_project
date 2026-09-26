@@ -28,8 +28,6 @@ class _LineTracingScreenState extends State<LineTracingScreen> {
 
   int _pointsRecorded = 0;
 
-  static const double _pathWidth = 70.0;
-
   void _startPractice() {
     setState(() {
       _points.clear();
