@@ -18,18 +18,26 @@ class _MotorProgressScreenState extends State<MotorProgressScreen> {
     'Line Tracing',
     'Writing Test',
     'Spiral Trace',
+    'Speech Assessment',
   ];
 
   Color _testColor(String testName) {
     switch (testName) {
       case 'Finger Tapping':
         return const Color(0xFF7B61C9);
+
       case 'Line Tracing':
         return const Color(0xFF4D8EDC);
+
       case 'Writing Test':
         return const Color(0xFF4BAA8A);
+
       case 'Spiral Trace':
         return const Color(0xFFE28A55);
+
+      case 'Speech Assessment':
+        return const Color(0xFF9B72CF);
+
       default:
         return const Color(0xFF4D8EDC);
     }
@@ -39,20 +47,25 @@ class _MotorProgressScreenState extends State<MotorProgressScreen> {
     switch (testName) {
       case 'Finger Tapping':
         return Icons.touch_app_rounded;
+
       case 'Line Tracing':
         return Icons.timeline_rounded;
+
       case 'Writing Test':
         return Icons.edit_rounded;
+
       case 'Spiral Trace':
         return Icons.gesture_rounded;
+
+      case 'Speech Assessment':
+        return Icons.record_voice_over_rounded;
+
       default:
         return Icons.analytics_rounded;
     }
   }
 
   double? _readScore(Map<String, dynamic> data) {
-    // Older assessments stored their result under a test-specific name.
-    // Keep those records visible alongside newer records that use `score`.
     final value = data['score'] ??
         data['screeningScore'] ??
         data['variationScore'];
@@ -69,14 +82,22 @@ class _MotorProgressScreenState extends State<MotorProgressScreen> {
 
     switch (_selectedTest) {
       case 'Finger Tapping':
-        return normalized.contains('finger') || normalized.contains('tap');
+        return normalized.contains('finger') ||
+            normalized.contains('tap');
+
       case 'Line Tracing':
         return normalized.contains('line');
+
       case 'Writing Test':
         return normalized.contains('writing') ||
             normalized.contains('handwriting');
+
       case 'Spiral Trace':
-        return normalized.contains('spiral');
+        return normalized.contains('spiral') ||
+            normalized.contains('motor');
+
+      case 'Speech Assessment':
+        return normalized.contains('speech');
     }
 
     return false;
@@ -122,8 +143,7 @@ class _MotorProgressScreenState extends State<MotorProgressScreen> {
                   .collection('motor_assessments')
                   .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState ==
-                    ConnectionState.waiting) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                     child: CircularProgressIndicator(),
                   );
@@ -135,8 +155,7 @@ class _MotorProgressScreenState extends State<MotorProgressScreen> {
                   );
                 }
 
-                final documents =
-                    snapshot.data?.docs ?? [];
+                final documents = snapshot.data?.docs ?? [];
 
                 return _buildContent(documents);
               },
@@ -173,8 +192,7 @@ class _MotorProgressScreenState extends State<MotorProgressScreen> {
       return _readScore(record.data())!;
     }).toList();
 
-    final latestScore =
-        scores.isNotEmpty ? scores.last : null;
+    final latestScore = scores.isNotEmpty ? scores.last : null;
 
     final previousScore =
         scores.length >= 2 ? scores[scores.length - 2] : null;
@@ -365,7 +383,7 @@ class _MotorProgressScreenState extends State<MotorProgressScreen> {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(17),
             ),
             child: Icon(
@@ -480,8 +498,7 @@ class _MotorProgressScreenState extends State<MotorProgressScreen> {
                   minY: 0,
                   maxY: 100,
                   minX: 0,
-                  maxX: (scores.length - 1)
-                      .toDouble(),
+                  maxX: (scores.length - 1).toDouble(),
                   gridData: FlGridData(
                     show: true,
                     drawVerticalLine: false,
@@ -603,7 +620,7 @@ class _MotorProgressScreenState extends State<MotorProgressScreen> {
                           BarAreaData(
                         show: true,
                         color:
-                            color.withOpacity(0.08),
+                            color.withValues(alpha: 0.08),
                       ),
                     ),
                   ],
@@ -759,7 +776,7 @@ class _MotorProgressScreenState extends State<MotorProgressScreen> {
           ),
           const SizedBox(width: 11),
           Text(
-            '$count ${_selectedTest} assessment'
+            '$count $_selectedTest assessment'
             '${count == 1 ? '' : 's'} recorded',
             style: const TextStyle(
               fontSize: 13,
